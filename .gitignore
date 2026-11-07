@@ -32,3 +32,30 @@ config.local.json
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# 备份（自定义后缀的也排）
+*.bak-*
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 测试与打包产物
+coverage/
+.nyc_output/
+.eslintcache
+*.tgz
+*.tsbuildinfo
+
+# 日志目录与临时
+logs/
+*.tmp
+*.pid
+
+# 密钥类（名字明确的）
+*.pem
+*.key
+*.p12
+secrets/
