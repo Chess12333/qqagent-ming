@@ -1,0 +1,126 @@
+{
+  "id": "proactive-plus",
+  "name": "更好的主动聊天插件",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "category": "utility",
+  "description": "夜间静音、主动发言最小间隔/每天上限，以及可选分享 B站视频/歌/网页链接。B站视频改成封面图+标题链接，不走 QQ 卡片。",
+  "author": "QQ Agent",
+  "enabledByDefault": false,
+  "permissions": [
+    "web_fetch"
+  ],
+  "capabilities": [],
+  "requires": [],
+  "settingsUi": {
+    "id": "main",
+    "label": "更好的主动聊天插件",
+    "file": "settings-ui.js"
+  },
+  "settings": {
+    "quietEnabled": true,
+    "quietStart": "00:30",
+    "quietEnd": "12:10",
+    "capEnabled": true,
+    "minIntervalMin": 120,
+    "maxPerDay": 3,
+    "maxPerRound": 2,
+    "allowBilibili": false,
+    "allowMusic": false,
+    "allowLink": false,
+    "shareMinIntervalMin": 240,
+    "shareMaxPerDay": 1,
+    "shareCriteria": "",
+    "quietWorkEnabled": true,
+    "quietWorkStart": "13:50",
+    "quietWorkEnd": "18:15",
+    "quietWorkRestOnly": true
+  },
+  "configSchema": {
+    "quietEnabled": {
+      "type": "boolean",
+      "label": "启用夜间静音",
+      "description": "开启后，静音时段内不主动找人；插件会临时把核心 proactive 开关设为 false，早上恢复。"
+    },
+    "quietStart": {
+      "type": "string",
+      "label": "夜间静音开始",
+      "description": "24 小时制 HH:MM，默认 00:30。这段每天都静音。"
+    },
+    "quietEnd": {
+      "type": "string",
+      "label": "夜间静音结束",
+      "description": "24 小时制 HH:MM，默认 12:10。"
+    },
+    "capEnabled": {
+      "type": "boolean",
+      "label": "启用主动发言额度",
+      "description": "开启后按最小间隔/每天上限/单轮上限限制主动轮。"
+    },
+    "minIntervalMin": {
+      "type": "number",
+      "label": "两次主动最小间隔（分钟）",
+      "description": "默认 120；0 = 不限制。"
+    },
+    "maxPerDay": {
+      "type": "number",
+      "label": "每天最多主动几次",
+      "description": "默认 3；0 = 不限制。"
+    },
+    "maxPerRound": {
+      "type": "number",
+      "label": "同一轮最多主动几条",
+      "description": "默认 2；防止一轮连发。"
+    },
+    "allowBilibili": {
+      "type": "boolean",
+      "label": "允许分享 B站视频",
+      "description": "关闭后主动轮不会发；你点名要时仍允许，且仍会改成封面图 + 标题链接，不再发 QQ 卡片。"
+    },
+    "allowMusic": {
+      "type": "boolean",
+      "label": "允许分享歌",
+      "description": "关闭后主动轮不会发；你点名要时仍允许。"
+    },
+    "allowLink": {
+      "type": "boolean",
+      "label": "允许分享网页链接",
+      "description": "关闭时主动轮里带链接的 send_message 会被拦；对方明确要链接的日常回复仍允许。"
+    },
+    "shareMinIntervalMin": {
+      "type": "number",
+      "label": "两次分享最小间隔（分钟）",
+      "description": "默认 240；0 = 不限制。只限制主动分享。"
+    },
+    "shareMaxPerDay": {
+      "type": "number",
+      "label": "每天最多主动分享几次",
+      "description": "默认 1；0 = 不限制。日常聊天里对方点名要的不计入拦截。"
+    },
+    "shareCriteria": {
+      "type": "textarea",
+      "label": "自己的筛选口径（可选）",
+      "description": "追加在内置筛选规则后面。例如：只发和编程/猫有关的；不发动漫剪辑。"
+    },
+    "quietWorkEnabled": {
+      "type": "boolean",
+      "label": "启用工作时段静音",
+      "description": "默认开。只在这个窗口里不主动找人。"
+    },
+    "quietWorkStart": {
+      "type": "string",
+      "label": "工作静音开始",
+      "description": "24 小时制 HH:MM，默认 13:50。"
+    },
+    "quietWorkEnd": {
+      "type": "string",
+      "label": "工作静音结束",
+      "description": "24 小时制 HH:MM，默认 18:15。"
+    },
+    "quietWorkRestOnly": {
+      "type": "boolean",
+      "label": "仅工作日静音",
+      "description": "默认开：节假日和双休日这个窗口不静音，可以主动找人。"
+    }
+  }
+}

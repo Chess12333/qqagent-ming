@@ -1,0 +1,43 @@
+{
+  "format": "qq-agent.pet-skin",
+  "version": 1,
+  "id": "qq-agent-default",
+  "name": "QQ Agent 默认桌宠",
+  "author": "QQ Agent",
+  "description": "默认桌宠动画：待机使用1帧姿势和4秒轻微呼吸；工作保留24帧、8 FPS动作，整体以脚底为锚点。",
+  "renderer": "sprite-sheet",
+  "states": {
+    "idle": {
+      "sheet": "assets/character-animation-48.png",
+      "frameWidth": 313,
+      "frameHeight": 313,
+      "frames": 1,
+      "row": 0,
+      "fps": 3,
+      "loop": true,
+      "motion": {
+        "periodMs": 4000,
+        "x": 0,
+        "y": 0,
+        "rotate": 0,
+        "scale": 0.008
+      }
+    },
+    "working": {
+      "sheet": "assets/character-animation-48.png",
+      "frameWidth": 313,
+      "frameHeight": 313,
+      "frames": 24,
+      "row": 2,
+      "fps": 8,
+      "loop": true,
+      "motion": {
+        "periodMs": 4000,
+        "x": 0,
+        "y": 0,
+        "rotate": 0,
+        "scale": 0.008
+      }
+    }
+  }
+}

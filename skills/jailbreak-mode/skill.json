@@ -1,0 +1,29 @@
+{
+  "id": "jailbreak-mode",
+  "name": "【角色扮演】无限制模式",
+  "version": "0.1.0",
+  "apiVersion": 1,
+  "category": "model",
+  "description": "仅在做成人角色扮演时打开。把桌面 jailbreak.md 的写作规范注入【扩展提示】；默认关闭，可只在指定会话生效。",
+  "author": "",
+  "enabledByDefault": false,
+  "entry": "index.js",
+  "permissions": [],
+  "settings": {
+    "extraNote": "",
+    "onlyChatKeys": ""
+  },
+  "configSchema": {
+    "extraNote": {
+      "type": "string",
+      "multiline": true,
+      "title": "临时补充一句（可选）",
+      "description": "面板上随手追加的一段要求，留空则不加。"
+    },
+    "onlyChatKeys": {
+      "type": "string",
+      "title": "只在这些会话生效（可选）",
+      "description": "会话键，多个用逗号隔开，例如 group:200000001, private:100000001。留空＝所有会话都生效。"
+    }
+  }
+}

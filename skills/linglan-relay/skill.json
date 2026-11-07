@@ -1,0 +1,50 @@
+{
+  "id": "linglan-relay",
+  "name": "泠岚 · ZCode 转发",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "category": "knowledge",
+  "description": "她私聊下令的活转发给 ZCode 侧的泠岚无头执行：relay__task 下单（只认她本人私聊），relay__status 查进度。干完自动回 QQ。",
+  "author": "泠岚",
+  "enabledByDefault": true,
+  "main": "index.js",
+  "entry": "index.js",
+  "permissions": [],
+  "settings": {},
+  "prompt": {
+    "when": "她在私聊说「告诉Zcode那边，XXX」「转给Zcode」「让Zcode那边XXX」时，或者问「转发的活怎么样了」时。",
+    "instruction": "她让你把活转给 ZCode 侧的泠岚时，调 relay_task 工具，把她的原话（去掉「告诉Zcode那边」这个前缀后的任务内容）原样传过去。工具返回受理回执就转告她「已转给Zcode那边，干完自动回你」。别自己编结果——真正的结果会由转发方干完后自动发 QQ。她问进度用 relay_status。",
+    "sections": [
+      {
+        "id": "relay-hint",
+        "title": "转发规则",
+        "priority": 40,
+        "content": "只有她本人（100000001）的私聊能下令转发，其他人发一律拒绝。任务由 ZCode 无头会话全自动执行（yolo 模式，她 2026-11-01 确认），10 分钟超时看护。结果会自动发 QQ，不需要你在会话里等。"
+      }
+    ]
+  },
+  "tools": [
+    {
+      "id": "task",
+      "name": "转发任务给ZCode",
+      "description": "把她私聊下达的任务转给 ZCode 侧的泠岚无头执行。只认她本人（100000001）私聊；干完自动回 QQ，不需要等结果。",
+      "category": "knowledge",
+      "icon": "📤",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "task": { "type": "string", "description": "任务内容（她的原话，去掉转发指令前缀）" }
+        },
+        "required": ["task"]
+      }
+    },
+    {
+      "id": "status",
+      "name": "查转发任务进度",
+      "description": "列最近几单转发任务的状态（执行中/完成/超时/失败）和结果摘要。",
+      "category": "knowledge",
+      "icon": "📋",
+      "parameters": { "type": "object", "properties": { "limit": { "type": "integer", "description": "默认 5，最多 10" } } }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# 白京玉 · 像素夜 —— 精致像素雨夜咖啡馆
+# UI 对齐精致像素游戏菜单，不是粗糙硬边像素
+id=bijingyu-pixel
+name=白京玉 · 像素夜
+uiStyle=pixel
+image=bijingyu-bg.png
+bg=#1a2438
+bg2=#24344f
+bg3=#2e4260
+accent=#e0a85c
+tool-accent=#9bb8d4
+text=#f0ebe2
+muted=#a8b4c4
+faint=#6e7c90

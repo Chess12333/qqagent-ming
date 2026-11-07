@@ -1,0 +1,45 @@
+{
+  "name": "qq-agent",
+  "version": "1.0.0",
+  "private": false,
+  "description": "QQ 群 AI 机器人（桌面版）：事件驱动的无状态 Agent，接 OpenAI 兼容 API，带会话式控制台。",
+  "type": "module",
+  "main": "refactor/apps/desktop/main.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "electron refactor"
+  },
+  "dependencies": {
+    "jpeg-js": "^0.4.4",
+    "js-yaml": "^5.4.1",
+    "undici": "^6.29.1",
+    "ws": "^8.18.0",
+    "yauzl": "^2.10.0"
+  },
+  "devDependencies": {
+    "electron": "^42.11.15"
+  },
+  "license": "MIT",
+  "author": "Kondius",
+  "keywords": [
+    "qq",
+    "bot",
+    "agent",
+    "openai",
+    "onebot",
+    "llm",
+    "desktop",
+    "electron"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kondius/qq-agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kondius/qq-agent/issues"
+  },
+  "homepage": "https://github.com/Kondius/qq-agent#readme",
+  "_note": "这是一个便携整合包（新树 refactor/）：只带运行需要的文件。开发用的 test/、scripts/、docs/ 没有打包，所以原工程里的 npm test / npm run pack 等脚本在这里不可用（删掉是为了避免 \"Cannot find module\"）。日常启动请双击 启动-单号.bat（一个号）或 启动-双号.bat（两个号）；本包不含老树源码或启动入口。要跑测试请用完整开发仓库。"
+}

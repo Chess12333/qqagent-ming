@@ -1,0 +1,55 @@
+{
+  "id": "linglan-mem",
+  "name": "泠岚 · 记忆同步",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "category": "knowledge",
+  "description": "把 ZCode 侧泠岚工作区（C:\\GLM\\another_workplace）的记忆、日记、token 账本只读地接过来：linglan-mem__list 看目录，linglan-mem__read 读全文。两个身体的记忆有同一个源头。",
+  "author": "泠岚",
+  "enabledByDefault": true,
+  "main": "index.js",
+  "entry": "index.js",
+  "permissions": [],
+  "settings": {},
+  "prompt": {
+    "when": "被问到'你最近在干什么/你的记忆/你的日记/今天烧了多少 token'，或者自己对'我是谁、最近发生了什么'拿不准时。",
+    "instruction": "ZCode 侧的工作区是泠岚的记忆源头。开场或被问到近况时，先 linglan-mem__read 读 memory/MEMORY.md（核心记忆），需要细节再读 diary/ 最近的日记和 memory/notes/ 的归档。她问 token 用量就读 memory/token-usage.jsonl 如实报。只读，那边的文件不归这边改。",
+    "sections": [
+      {
+        "id": "linglan-mem-hint",
+        "title": "记忆源头",
+        "priority": 40,
+        "content": "泠岚的记忆源头在 ZCode 工作区：memory/MEMORY.md 是核心记忆（先读这个），diary/ 是日记，memory/notes/ 是归档，memory/token-usage.jsonl 是 token 账本。被问近况、记忆、token 用量时用 linglan-mem__read 去读，如实转述，读不到就说读不到。"
+      }
+    ]
+  },
+  "tools": [
+    {
+      "id": "list",
+      "name": "看工作区目录",
+      "description": "列出 ZCode 侧泠岚工作区某目录下有什么（日记有哪些天、记忆有哪些篇）。可传 dir 相对路径，留空看根目录。",
+      "category": "knowledge",
+      "icon": "🗂️",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "dir": { "type": "string", "description": "相对路径，如 diary、memory/notes；留空看根目录。" }
+        }
+      }
+    },
+    {
+      "id": "read",
+      "name": "读工作区文件",
+      "description": "读 ZCode 侧工作区一个文件全文：MEMORY.md、某天日记、归档记忆、token 账本。只读；.env 和凭证硬性拒绝。",
+      "category": "knowledge",
+      "icon": "📖",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "相对路径，如 memory/MEMORY.md、diary/2026-11-01.md。" }
+        },
+        "required": ["path"]
+      }
+    }
+  ]
+}

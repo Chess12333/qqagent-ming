@@ -1,0 +1,19 @@
+{
+  "format": "qq-agent-theme",
+  "version": 1,
+  "id": "bijingyu-pixel",
+  "name": "白京玉 · 像素夜",
+  "description": "精致像素雨夜咖啡馆：暖夜蓝 + 灯火琥珀 + 奶油字（壁纸 bijingyu-bg.png）",
+  "image": "bijingyu-bg.png",
+  "uiStyle": "pixel",
+  "colors": {
+    "bg": "#1a2438",
+    "bg2": "#24344f",
+    "bg3": "#2e4260",
+    "accent": "#e0a85c",
+    "tool-accent": "#9bb8d4",
+    "text": "#f0ebe2",
+    "muted": "#a8b4c4",
+    "faint": "#6e7c90"
+  }
+}

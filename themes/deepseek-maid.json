@@ -1,0 +1,17 @@
+{
+  "id": "deepseek-maid",
+  "name": "DeepSeek 娘",
+  "description": "深蓝 + 鎏金 + 壁纸（ui/assets/deepseek-bg.png）",
+  "image": "deepseek-bg.png",
+  "colors": {
+    "bg": "#101c2e",
+    "bg2": "#16243a",
+    "bg3": "#1e3048",
+    "accent": "#4d8fc9",
+    "tool-accent": "#d4b56a",
+    "text": "#e8eef6",
+    "muted": "#9aafc4",
+    "faint": "#6d8199"
+  },
+  "uiStyle": "maid"
+}

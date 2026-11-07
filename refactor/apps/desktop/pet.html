@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; img-src 'self' http://127.0.0.1:*; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>桌宠</title>
+  <link rel="stylesheet" href="./pet.css" />
+</head>
+<body>
+  <main class="stage" id="stage">
+    <div class="panel" id="panel">
+      <div class="status" id="status">
+        <p class="status__line status__line--state" id="state-line">发呆中</p>
+        <p class="status__line" id="usage-line" hidden></p>
+        <p class="status__line" id="mood-line" hidden></p>
+        <p class="status__line status__line--emotion" id="emotion-line" hidden></p>
+      </div>
+
+      <div class="pet" id="pet">
+        <div class="pet__sprite" id="pet-sprite" role="img" aria-label="桌宠"></div>
+      </div>
+
+      <div class="controls" id="controls">
+        <button type="button" class="controls__btn" id="btn-hide" title="隐藏">隐藏</button>
+        <button type="button" class="controls__btn" id="btn-on-top" title="置顶">置顶</button>
+      </div>
+
+      <!-- pet.actions 的悬浮面板落点：宿主在这里建白名单 DOM，第三方不直接碰页面 -->
+      <div id="overlay" hidden></div>
+    </div>
+  </main>
+
+  <script src="./pet-renderer.js"></script>
+</body>
+</html>

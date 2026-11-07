@@ -1,0 +1,17 @@
+{
+  "format": "qq-agent-theme",
+  "version": 1,
+  "id": "mech-orange",
+  "name": "机甲 · 黑橙",
+  "description": "近黑机甲底 + 琥珀橙强调，参考 Armoury Crate 控制面板。",
+  "colors": {
+    "bg": "#0c0c0e",
+    "bg2": "#151517",
+    "bg3": "#222224",
+    "accent": "#f5a623",
+    "tool-accent": "#ff7a00",
+    "text": "#f4f4f5",
+    "muted": "#a8a8ad",
+    "faint": "#6e6e73"
+  }
+}

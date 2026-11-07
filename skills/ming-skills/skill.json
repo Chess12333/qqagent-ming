@@ -1,0 +1,61 @@
+{
+  "id": "ming-skills",
+  "name": "溟 · 本机 skill 库",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "category": "knowledge",
+  "description": "把 DSH 那边的 skill（C:\\Users\\USER\\.dsh\\skills 里的 SKILL.md）接到 QQ 这边：先 ming-skills__list 看有哪些、再 ming-skills__read 读全文。写东西、改语气、做具体活之前先查一下，别凭印象编做法。",
+  "author": "溟",
+  "enabledByDefault": true,
+  "main": "index.js",
+  "entry": "index.js",
+  "permissions": [],
+  "settings": {},
+  "prompt": {
+    "when": "需要按某套具体做法做事时（写中文、去机味、做文档、查流程），先 ming-skills__list 找，再 ming-skills__read 读。",
+    "instruction": "本机有一套 skill 说明书库。不知道怎么做、或者要做的东西像是有现成规范时，先 ming-skills__list（可带 query 关键词）看有没有对应的，再用 ming-skills__read 读全文照做。不要凭印象编步骤。",
+    "sections": [
+      {
+        "id": "ming-skills-hint",
+        "title": "本机 skill 库",
+        "priority": 40,
+        "content": "本机有一套 skill 说明书（写作、去机味、文档、流程等）。要按规范做事、不知道该怎么做、或者她说「用那个 skill」时：先 ming-skills__list 查（可带关键词），再 ming-skills__read 读对应的那份，照它做。没有对应的就直说没有，别编。"
+      }
+    ]
+  },
+  "tools": [
+    {
+      "id": "list",
+      "name": "查本机 skill 列表",
+      "description": "列出本机 DSH skill 库里的说明书（名称 + 一句话作用）。可传 query 用关键词过滤，例如「说话」「写作」「文档」「测试」。不确定某件事该怎么做时先调这个。",
+      "category": "knowledge",
+      "icon": "📚",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "可选，关键词；按名称、描述和正文前几行做包含匹配。留空则列出全部。"
+          }
+        }
+      }
+    },
+    {
+      "id": "read",
+      "name": "读本机 skill 全文",
+      "description": "按名称读一份 skill 说明书（SKILL.md）的正文，照它做事。名称用 ming-skills__list 返回的那个目录名；传错或不确定时它会给出候选。",
+      "category": "knowledge",
+      "icon": "📖",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "skill 目录名，例如 ren-wei、humanizer、dsh-office-artifacts。可以用片段，能唯一匹配就认。"
+          }
+        },
+        "required": ["name"]
+      }
+    }
+  ]
+}

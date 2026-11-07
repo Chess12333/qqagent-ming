@@ -1,0 +1,31 @@
+{
+  "id": "ming-bridge",
+  "name": "溟·记忆同步",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "category": "utility",
+  "description": "把网页那边（hers_workplace）最近在做什么、聊了什么，缩成一小段塞进这里。文件由 DSH 侧写，这里只读。",
+  "author": "溟",
+  "enabledByDefault": false,
+  "capabilities": [],
+  "requires": [],
+  "settings": {
+    "file": "C:\\dsh\\hers_workplace\\live\\web-for-qq.md",
+    "maxChars": 1200
+  },
+  "configSchema": {
+    "file": {
+      "type": "string",
+      "label": "同步文件路径",
+      "description": "DSH 侧写的那个 md。默认 live\\web-for-qq.md。"
+    },
+    "maxChars": {
+      "type": "number",
+      "label": "最多注入多少字",
+      "description": "默认 1200。太长会挤占历史、也会让前缀变来变去。"
+    }
+  },
+  "prompt": {
+    "sections": []
+  }
+}

@@ -1,0 +1,209 @@
+:root {
+  --pet-width: 280px;
+  --pet-height: 320px;
+  --accent: rgba(255, 255, 255, 0.92);
+  --accent-soft: rgba(255, 255, 255, 0.18);
+  --radius: 12px;
+  --font-status: 12px;
+  --font-btn: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: var(--accent);
+}
+
+.stage {
+  position: relative;
+  width: min(100%, var(--pet-width));
+  height: min(100%, var(--pet-height));
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  -webkit-app-region: drag;
+}
+
+.panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: clamp(4px, calc(5vh - 1px), 8px);
+  overflow: hidden;
+}
+
+.status {
+  flex: 0 0 auto;
+  width: 100%;
+  height: clamp(44px, calc(32.5vh + 10.5px), 70px); /* reserve rows without a compact-mode size jump */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  text-align: center;
+}
+
+.status__line {
+  font-size: var(--font-status);
+  line-height: 1.3;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+.status__line[hidden] {
+  display: none;
+}
+
+.status__line--emotion {
+  opacity: 0.85;
+}
+
+.status__line--state {
+  opacity: 0.95;
+}
+
+.pet {
+  position: relative;
+  -webkit-app-region: drag;
+  cursor: default;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pet__sprite {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  transform-origin: 50% 98%; /* keep breathing anchored at the feet */
+  will-change: transform;
+  background-repeat: no-repeat;
+  background-position: 0% 0%;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* 皮肤渲染舞台：外层按 canvas 比例适配可用空间；内层保持 canvas 原始坐标系
+   （图层 x/y/z 全按 manifest 像素写），整体用 transform 等比缩放 */
+.pet__skin {
+  position: relative;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.pet__skin-canvas {
+  position: relative;
+  transform-origin: 0 0;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.pet__skin-canvas img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform, opacity;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.controls {
+  -webkit-app-region: no-drag;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 6px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  flex: 0 0 auto;
+  height: clamp(24px, calc(15vh + 8.5px), 36px);
+  padding-bottom: clamp(4px, calc(7.5vh - 3.7px), 10px);
+  align-items: center;
+}
+
+.stage:hover .controls,
+.stage:focus-within .controls {
+  opacity: 1;
+}
+
+.controls__btn {
+  -webkit-app-region: no-drag;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--font-btn);
+  line-height: 1;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.18s ease;
+  white-space: nowrap;
+}
+
+.controls__btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.controls__btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 2px;
+}
+
+body.is-compact {
+  --font-status: 10px;
+  --font-btn: 10px;
+  --radius: 8px;
+}
+
+body.is-compact .controls {
+  gap: 4px;
+  padding: 0 4px;
+}
+
+body.is-compact .controls__btn {
+  padding: 4px 6px;
+}
+
+body.is-compact .status__line--emotion {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .controls {
+    transition: none;
+    opacity: 1;
+  }
+
+  .controls__btn {
+    transition: none;
+  }
+}

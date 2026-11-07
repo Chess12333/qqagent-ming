@@ -1,0 +1,11 @@
+# QQ Agent 主题 · 机甲 · 黑橙（键值示例，可复制改色）
+id=mech-orange
+name=机甲 · 黑橙
+bg=#0c0c0e
+bg2=#151517
+bg3=#222224
+accent=#f5a623
+tool-accent=#ff7a00
+text=#f4f4f5
+muted=#a8a8ad
+faint=#6e6e73

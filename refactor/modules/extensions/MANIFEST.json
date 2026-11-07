@@ -1,0 +1,87 @@
+{
+  "generatedAt": "2026-10-04T11:36:51.317Z",
+  "sourceOfTruth": "src",
+  "files": [
+    {
+      "src": "src/plugin-loader.js",
+      "dst": "refactor/modules/extensions/plugin-loader.js",
+      "srcSha256": "f19b7f3dd7cf7f3e457335c82a70e57d5df38e8f0d6b4ec9fa7ea9d1a2152a31",
+      "dstSha256": "fb6dad22cf7f75612dfa2315e440599cfc35f197bf14215a9709c0e874900df9",
+      "srcBytes": 53849,
+      "dstBytes": 53867,
+      "importEdits": 5
+    },
+    {
+      "src": "src/skill-bridge.js",
+      "dst": "refactor/modules/extensions/skill-bridge.js",
+      "srcSha256": "e7e62f644771e5c97edcc7ddb1016429ce24bba46f767dc7fdc2b83ad5ef27a7",
+      "dstSha256": "e4cc2a1a793e347c09dfd47295b03421cf00a8c78deb0aedadae87aeb736db45",
+      "srcBytes": 5806,
+      "dstBytes": 5803,
+      "importEdits": 3
+    },
+    {
+      "src": "src/skills/capabilities.js",
+      "dst": "refactor/modules/extensions/skills/capabilities.js",
+      "srcSha256": "b20f4e82f048a7685719a3de39fb5cac24dd0fdfd556267308fac5fa4ea5d5dd",
+      "dstSha256": "b20f4e82f048a7685719a3de39fb5cac24dd0fdfd556267308fac5fa4ea5d5dd",
+      "srcBytes": 2664,
+      "dstBytes": 2664,
+      "importEdits": 0
+    },
+    {
+      "src": "src/skills/config.js",
+      "dst": "refactor/modules/extensions/skills/config.js",
+      "srcSha256": "e0c02af7b15e8c873b703d3a8a7ddb5576eb821dc9bc3171126c808df3accf3d",
+      "dstSha256": "6d428acc02cc7e12e441f168411daa44a0541a7fd24eed63c73770f9b25c4c28",
+      "srcBytes": 2204,
+      "dstBytes": 2227,
+      "importEdits": 1
+    },
+    {
+      "src": "src/skills/errors.js",
+      "dst": "refactor/modules/extensions/skills/errors.js",
+      "srcSha256": "886b629edc99226304151d23c8a2e124740eede90bc6405401aea29a6215a4cf",
+      "dstSha256": "886b629edc99226304151d23c8a2e124740eede90bc6405401aea29a6215a4cf",
+      "srcBytes": 1647,
+      "dstBytes": 1647,
+      "importEdits": 0
+    },
+    {
+      "src": "src/skills/manager.js",
+      "dst": "refactor/modules/extensions/skills/manager.js",
+      "srcSha256": "8f052110c987743ff5a2ed989d4263101189be65bf0cd80cdf5eacacc05f271f",
+      "dstSha256": "8f052110c987743ff5a2ed989d4263101189be65bf0cd80cdf5eacacc05f271f",
+      "srcBytes": 24008,
+      "dstBytes": 24008,
+      "importEdits": 0
+    },
+    {
+      "src": "src/skills/manifest.js",
+      "dst": "refactor/modules/extensions/skills/manifest.js",
+      "srcSha256": "d383ea1bbe867ffc98d175bf4546d21ab90871fd028ab1f9e29c1a6734f9e7a7",
+      "dstSha256": "d383ea1bbe867ffc98d175bf4546d21ab90871fd028ab1f9e29c1a6734f9e7a7",
+      "srcBytes": 7224,
+      "dstBytes": 7224,
+      "importEdits": 0
+    },
+    {
+      "src": "src/skills/registry.js",
+      "dst": "refactor/modules/extensions/skills/registry.js",
+      "srcSha256": "5e6d98dbfb99ebeaa658769bf16a1fa1be396c50d2b8aaa8a444a17ac0ee4819",
+      "dstSha256": "5e6d98dbfb99ebeaa658769bf16a1fa1be396c50d2b8aaa8a444a17ac0ee4819",
+      "srcBytes": 1650,
+      "dstBytes": 1650,
+      "importEdits": 0
+    },
+    {
+      "src": "src/skills/zip-import.js",
+      "dst": "refactor/modules/extensions/skills/zip-import.js",
+      "srcSha256": "5eccd57c99bfa0d8c23326481d35adde395d16fed30a5f0e108eb18c384fc2da",
+      "dstSha256": "5eccd57c99bfa0d8c23326481d35adde395d16fed30a5f0e108eb18c384fc2da",
+      "srcBytes": 7232,
+      "dstBytes": 7232,
+      "importEdits": 0
+    }
+  ]
+}

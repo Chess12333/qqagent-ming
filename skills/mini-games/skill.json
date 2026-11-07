@@ -1,0 +1,67 @@
+{
+  "id": "mini-games",
+  "name": "群内小游戏",
+  "version": "2.0.0",
+  "apiVersion": 1,
+  "category": "utility",
+  "description": "在群里开小游戏（猜数字/骰子/成语接龙/海龟汤/猜拳/21点/井字棋…共 14 个）。牌局状态由插件自己记（不靠模型记忆），每轮只注入一行局面；判定全部由插件做。",
+  "author": "QQ Agent",
+  "enabledByDefault": true,
+  "settings": {
+    "enabled": true,
+    "idleTtlMinutes": 120,
+    "idleCloseMinutes": 5,
+    "announceInGroup": true,
+    "idiomMinLen": 4,
+    "numberRange": 100,
+    "allowModelPuzzle": true
+  },
+  "configSchema": {
+    "enabled": {
+      "type": "boolean",
+      "label": "启用小游戏",
+      "description": "关掉后工具仍注册但会直接返回拒绝，也不会注入牌局。"
+    },
+    "idleTtlMinutes": {
+      "type": "number",
+      "label": "牌局闲置过期（分钟）",
+      "description": "超过这么久没人动就自动结束这局，避免半个牌局挂一整天。默认 120。"
+    },
+    "idleCloseMinutes": {
+      "type": "number",
+      "label": "闲置快速关闭（分钟）",
+      "description": "游戏开着但超过这么久没有任何触发（没人开局、没人走一步）就自动结束并释放状态。默认 5。"
+    },
+    "announceInGroup": {
+      "type": "boolean",
+      "label": "结果直接发群",
+      "description": "开着时由插件把判定结果直接发出去（走发送队列，可靠）；关掉则只把结果给模型，让它自己组织语言。"
+    },
+    "idiomMinLen": {
+      "type": "number",
+      "label": "成语接龙最少字数",
+      "description": "接龙的词至少几个字，默认 4（放水到 2 可减少「这不是成语」的争执）。"
+    },
+    "numberRange": {
+      "type": "number",
+      "label": "猜数字/数字炸弹上限",
+      "description": "1~N 之间，默认 100。"
+    },
+    "allowModelPuzzle": {
+      "type": "boolean",
+      "label": "海龟汤允许模型自己出题",
+      "description": "开着时模型可以在开局时自带汤面+汤底（汤底仍由插件存下来、只能靠揭晓发出）；关掉则只用插件内置题库，题目质量更稳。"
+    }
+  },
+  "permissions": [],
+  "prompt": {
+    "sections": [
+      {
+        "id": "mini-games-note",
+        "title": "小游戏",
+        "priority": 35,
+        "content": "群里玩小游戏只用这些工具，按工具结果说，别自己判：\n- mini-games__game_start：开局（游戏名或「随机」）\n- mini-games__game_move：只转交群友刚发的原话，text 原样填入\n- mini-games__game_stop：收摊；reveal=true 时公布答案\n不能替群友出牌：找不到玩家原话就别调用 mini-games__game_move。牌局中别潜水或乱接。\n可开：猜数字、掷骰子、成语接龙、海龟汤、猜拳、数字炸弹、逢七过、21点、井字棋、猜词、谜语、抽签、记忆翻牌、24点。\n猜拳、掷骰子至少两人参与才能结算，人不齐先等着。\n海龟汤：只回「是/不是/无关/部分是」；玩家猜通就 mini-games__game_stop(reveal=true)。"
+      }
+    ]
+  }
+}

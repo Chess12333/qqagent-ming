@@ -1,0 +1,8 @@
+{
+  "name": "qq-agent-refactor",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Refactored tree (16 modules) desktop shell entry. Launched by launch.ps1 only when QQ_AGENT_USE_NEW_TREE=1.",
+  "type": "module",
+  "main": "apps/desktop/main.js"
+}
