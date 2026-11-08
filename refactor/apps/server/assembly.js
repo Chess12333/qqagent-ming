@@ -792,6 +792,8 @@ function createExtensionSender({ getModules, configStore, log = () => {} }) {
       ...(payload.replyToMessageId ? { replyToMessageId: payload.replyToMessageId } : {}),
       cfg,
       idempotencyKey: String(options.idempotencyKey || '') || nextKey(key),
+      signal: options.signal,
+      deadline: options.deadline,
       action: 'extension-send'
     }, platform);
     const texts = Array.isArray(receipt?.sentTextMessages) && receipt.sentTextMessages.length
@@ -817,11 +819,14 @@ function createExtensionSender({ getModules, configStore, log = () => {} }) {
       reason: String(row?.reason ?? 'dropped'),
       atUserId: null
     }));
-    if (blocked.length) return { sent: [], failed: [], blocked };
+    if (blocked.length && receipt?.state !== 'unknown' && !receipt?.platformId
+      && !(Number(receipt?.coverage?.receiptCount) > 0)) {
+      return { sent: [], failed: [], blocked };
+    }
     // 其它失败（抛错/结果未知）：一律当失败抛，让调用方按 uncertain 记 —— 绝不假装发出去。
     const error = String(receipt?.error ?? '发送失败');
     log(`[extension-sender] 发送失败 chatKey=${key}：${error}`);
-    throw new Error(error);
+    throw Object.assign(new Error(error), { state: receipt?.state || 'unknown', receipt });
   }
 
   return {

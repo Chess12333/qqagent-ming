@@ -101,7 +101,9 @@ async function onebotPostWithRetry(urlStr, bodyBuf, headers, timeoutMs, options 
   } catch (error) {
     const msg = String(error?.message ?? error);
     const transient = /ECONNRESET|EPIPE|socket hang up|ECONNREFUSED/i.test(msg);
-    if (!transient) throw error;
+    // Retry only read actions. A lost send response cannot prove non-delivery.
+    const action = new URL(urlStr).pathname.split('/').filter(Boolean).pop() || '';
+    if (!transient || !/^(get_|can_)/.test(action)) throw error;
     let remaining = deadline === null ? Infinity : deadline - Date.now();
     if (options?.signal?.aborted || remaining <= 0) throw error;
     const waitMs = Math.min(300, remaining);

@@ -1695,7 +1695,7 @@ function judgeSessionExtractCached(registry, summary) {
   return extract;
 }
 
-function judgeSessionStats(ctx, day, sentRows) {
+async function judgeSessionStats(ctx, day, sentRows) {
   const registry = sessionsFor(ctx);
   const emptyStats = {
     available: false,
@@ -1716,7 +1716,10 @@ function judgeSessionStats(ctx, day, sentRows) {
     const matched = new Map();
     const sentIds = new Set(sentRows.map((row) => String(row.requestId ?? '')));
     let readErrors = 0;
+    let scanned = 0;
     for (const summary of today) {
+      // Yield before each batch; count skipped/error rows as well.
+      if (scanned++ % 32 === 0) await new Promise((resolve) => setImmediate(resolve));
       let extract;
       try { extract = judgeSessionExtractCached(registry, summary); }
       catch { readErrors += 1; continue; }
@@ -1783,7 +1786,7 @@ function judgeSessionStats(ctx, day, sentRows) {
 }
 
 /** GET /api/judge-usage — cloud_judge 预算账 + 当日会话 turnPlan 的只读聚合。 */
-export function getJudgeUsage(ctx, now = Date.now()) {
+export async function getJudgeUsage(ctx, now = Date.now()) {
   const day = localDayKey(now);
   const hardLimit = budgetHardLimitView(ctx);
   const ledger = readJudgeBudgetRows(ctx, day);
@@ -1858,7 +1861,7 @@ export function getJudgeUsage(ctx, now = Date.now()) {
   }
 
   internalCalls.sort((a, b) => String(a.at ?? '').localeCompare(String(b.at ?? '')));
-  const sessionData = judgeSessionStats(ctx, day, sentRows);
+  const sessionData = await judgeSessionStats(ctx, day, sentRows);
   const sessionStats = sessionData.stats;
   for (const call of internalCalls) {
     const session = sessionData.byRequestId.get(call.requestId);

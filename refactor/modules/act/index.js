@@ -1347,7 +1347,8 @@ async function deliverPreparedMedia(name, prepared, ctx, plan, timeoutMs, idempo
   }
   let receipt;
   try {
-    receipt = await executeWithBudget(() => send({
+    receipt = await executeWithBudget((toolCtx) => send({
+          signal: toolCtx.signal, deadline: toolCtx.deadline,
       media: prepared.media,
       chatKey: ctx.chatKey,
       evidenceId: ctx.evidenceId,
@@ -1466,7 +1467,8 @@ async function deliverPreparedForward(name, prepared, ctx, plan, timeoutMs, idem
   const text = render(kept, truncated);
   let receipt;
   try {
-    receipt = await executeWithBudget(() => send({
+    receipt = await executeWithBudget((toolCtx) => send({
+          signal: toolCtx.signal, deadline: toolCtx.deadline,
       messages: [text],
       chatKey: ctx.chatKey,
       kind: ctx.kind,
@@ -1535,7 +1537,8 @@ async function finishPreparedForward(name, prepared, data, plan, ctx, timeoutMs,
  *     通过 `ctx.signal` 交给执行器 —— 支持取消的只读网络/子进程（如 B 站抽帧）据此真正停下；
  *   · 超时只 abort 这次调用的 signal，并在错误上标 `abortRequested`；**不宣称写/发送已取消**：
  *     上层仍按 state='unknown' + 幂等保护处理，不会因超时重放副作用；
- *   · 发送类调用不消费该 signal（send() 不读 ctx.signal），避免把已开始的平台调用误杀成"未发出"。
+ *   · 发送类调用传入该 signal 和 deadline：排队未开始时可确认为 not_sent；已开始后仍按 unknown 保护，
+ *     不把超时或取消误判成未发送。
  */
 async function executeWithBudget(executor, args, ctx, timeoutMs) {
   let timer;
@@ -1680,7 +1683,8 @@ async function runOne(tool, args, plan, ctx, timeoutMs, resolvedIdempotencyKey =
         }
         // ★ T-HYGIENE-FUNNEL：卫生检查只活在 send() 里（单检查点，不双洗）。
         //   这里只把配置透传进 receiptInput（opt-in 门要 cfg；默认门无 cfg 照开）。
-        const receipt = await executeWithBudget(() => send({
+        const receipt = await executeWithBudget((toolCtx) => send({
+          signal: toolCtx.signal, deadline: toolCtx.deadline,
           ...sendArgs,
           chatKey: ctx.chatKey,
           kind: ctx.kind,
@@ -2273,6 +2277,7 @@ export async function send(receiptInput, platform) {
         sendBudget.used += retainedTextCount;
         platformCallStarted = true;
         const raw = await platform.sendSegments(receiptInput.chatKey, segments, {
+          signal: receiptInput.signal, deadline: receiptInput.deadline,
           replyToMessageId: receiptInput.replyToMessageId,
           atUserId: receiptInput.atUserId,
           idempotencyKey
@@ -2296,6 +2301,7 @@ export async function send(receiptInput, platform) {
       const raw = await platform.sendTextBatch(receiptInput.chatKey, messages, {
         replyToMessageId: receiptInput.replyToMessageId,
         atUserId: receiptInput.atUserId,
+        signal: receiptInput.signal, deadline: receiptInput.deadline,
         idempotencyKey
       });
       const sent = Array.isArray(raw?.sent) ? raw.sent : [];

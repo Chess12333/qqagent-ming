@@ -32,7 +32,7 @@ function withTimeout(promise, timeoutMs) {
 
 export function createSendRecovery(result, { now = Date.now() } = {}) {
   const sent = asArray(result?.sent);
-  const failed = asArray(result?.failed);
+  const failed = [...asArray(result?.failed), ...asArray(result?.unknown)];
   return {
     createdAt: now,
     sentCount: sent.length,
@@ -86,7 +86,7 @@ export async function retryBlockedOnce(sender, chatKey, recovery, {
       const result = await withTimeout(pendingSend, attemptTimeout);
       const sent = asArray(result?.sent);
       const blocked = asArray(result?.blocked);
-      const failed = asArray(result?.failed);
+      const failed = [...asArray(result?.failed), ...asArray(result?.unknown)];
       recovery.sentCount += sent.length;
       recovery.delivered.push(...sent.map((row) => ({
         text: String(row?.text ?? segment.text), messageId: row?.messageId ?? null, at: row?.at ?? null

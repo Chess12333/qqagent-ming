@@ -82,16 +82,19 @@ import {
 export { msgRef, normalizeRef };
 
 /**
- * 兴趣唤醒的观察口（2026-11-08 加）
+ * 兴趣唤醒的观察口（2026-11-08 溟加）
  *
- * 有什么问题它解决：外部的「关键词兴趣唤醒」要读「群里刚说了什么」，
- * 但生产消息库是整份 JSON 重写（几十 MB），拿它当轮询源等于每次重读全表。
- * 这里在收到群消息时顺手 append 一行到 `MING_QQ_INBOX` 指的 jsonl。
- * 没设这个环境变量就什么都不做——公开包里不留私人路径。
- * 写失败一律吞掉：这不是主链路，宁可少一条观察，也不能让收消息失败。
+ * 为什么加：DSH 那边的 `dsh-ming-interest` 一直在读 `…\.dsh\media\onebot\qq-inbox.jsonl`，
+ * 而写那份文件的是一个早停用的 onebot 插件。文件停在 2026-10-21 12:02，三周没长过一个字，
+ * 于是插件每轮都诚实地报「没有新消息」——**关键词唤醒从那天起其实一直没工作**。
+ *
+ * 这里在收到群消息时顺手 append 一行（就是那个插件当初写的格式）。
+ * 路径由 `MING_QQ_INBOX` 给，**公开仓里不留私人路径**；没设就什么都不做。
+ * 写失败一律吞：这不是主链路，宁可少一条观察，也不能让收消息失败。
  */
 const INBOX_PATH = String(process.env.MING_QQ_INBOX || '');
-// 只给「看一眼有没有新消息」用，不值得无限长：超过 8 MB 轮转成 .1。
+// 这份文件只给「看一眼有没有新消息」用，不值得无限长：超过 8 MB 就轮转成 .1。
+// 读取方（dsh-ming-interest）是拿 size 当游标的，文件变短它会自己把游标归 0，所以轮转是安全的。
 const INBOX_MAX_BYTES = 8 * 1024 * 1024;
 let inboxWrites = 0;
 function appendInbox(chatKey, entry) {
@@ -122,6 +125,7 @@ function appendInbox(chatKey, entry) {
     /* 观察记录，写不出来就算了 */
   }
 }
+
 
 // ── 路径（**每次调用时**解析，绝不在模块加载时定值） ──────────────────────
 /** 热段目录：`<dataDir>/messages`。解析不出 dataDir 就抛错，不放行到默认目录（见 data-dir.js）。 */
@@ -1301,7 +1305,7 @@ export class ChatStore {
     }
     if (st._memberIndex) this.#indexMember(st._memberIndex, entry);
     this.#commitSourceRevision(st);
-    appendInbox(chatKey, entry);   // 兴趣唤醒的观察口；没配 MING_QQ_INBOX 就是空操作
+    appendInbox(chatKey, entry);   // 兴趣唤醒的观察口，见文件顶部注释；没配 MING_QQ_INBOX 就是空操作
     return entry;
   }
 

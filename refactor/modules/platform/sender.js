@@ -435,6 +435,12 @@ export class SendQueue {
     const chain = this.#chain(chatKey);
     const reply = this.#resolveReply(chatKey, options.replyToMessageId);
     const promises = [];
+    const deliveryStates = parts.map(() => 'not_sent');
+    const checkCancelled = () => {
+      if (options.signal?.aborted || (Number.isFinite(options.deadline) && Date.now() >= options.deadline)) {
+        throw Object.assign(new Error('发送已取消或超过期限'), { deliveryState: 'not_sent' });
+      }
+    };
     // Additive API-v1 contract: before-send runs once per split text; unknown
     // returns are ignored, failures keep the original text, and after-send
     // returns are ignored. Extensions that do not register these hooks preserve
@@ -444,6 +450,7 @@ export class SendQueue {
       const originalText = parts[i];
       const isLast = i === parts.length - 1;
       promises.push(chain(async () => {
+        checkCancelled();
         let text = originalText;
         const hookPayload = {
           chatKey, kind, id, text, index: i, total: parts.length,
@@ -479,7 +486,9 @@ export class SendQueue {
         const minGap = Math.min(3000, Math.max(900, String(text || '').length * 90));
         const sinceLast = Date.now() - (this.lastTextAt.get(chatKey) || 0);
         if (sinceLast < minGap) await sleep(minGap - sinceLast);
+        checkCancelled();
         let data;
+        deliveryStates[i] = 'unknown';
         try {
           data = await this.onebot.sendText(kind, id, text, {
             replyToMessageId: i === 0 ? reply.mid : null, // 引用挂在第一条上：回的就是那条
@@ -492,24 +501,27 @@ export class SendQueue {
           throw error;
         }
         const messageId = data?.message_id ?? null;
-        await this.#runSendHook('after-send', {
-          ...hookPayload, text, messageId, error: null
-        });
+        if (messageId === null || !String(messageId).trim()) throw new Error('发送回执缺少 message_id');
+        deliveryStates[i] = 'sent';
         const ts = Date.now();
         this.lastTextAt.set(chatKey, ts);
-        // 把"引用了哪条"一起留档：以前自己发的消息不记引用，出了问题（引用错）无从对账
-        this.store.appendSelf(chatKey, {
-          text, ts, mid: messageId, hype: isHypeMode(),
-          reply: i === 0 ? reply.target : null
-        });
-        this.onSent?.({ chatKey, text, messageId });
-        return { text, messageId, at: formatClockTime(ts) };
+        // Local bookkeeping cannot undo a confirmed remote delivery.
+        const postSendErrors = [];
+        for (const finish of [
+          () => this.#runSendHook('after-send', { ...hookPayload, text, messageId, error: null }),
+          () => this.store.appendSelf(chatKey, { text, ts, mid: messageId, hype: isHypeMode(), reply: i === 0 ? reply.target : null }),
+          () => this.onSent?.({ chatKey, text, messageId })
+        ]) {
+          try { await finish(); } catch (error) { postSendErrors.push(String(error?.message ?? error)); }
+        }
+        return { text, messageId, at: formatClockTime(ts), deliveryState: 'sent', ...(postSendErrors.length ? { postSendErrors } : {}) };
       }));
     }
 
     const settled = await Promise.allSettled(promises);
     const sent = [];
     const failed = [];
+    const unknown = [];
     const blocked = [];
     for (let i = 0; i < settled.length; i++) {
       const r = settled[i];
@@ -523,7 +535,10 @@ export class SendQueue {
       } else if (r.status === 'fulfilled') sent.push(r.value);
       // 带上 index 和原文：调用方需要知道"哪一条"失败了（才能重发或告知模型）。
       // 原先 failed 里只有 error，没有任何定位信息。
-      else failed.push({ index: i, text: parts[i], error: String(r.reason?.message ?? r.reason) });
+      else {
+        const deliveryState = deliveryStates[i];
+        (deliveryState === 'not_sent' ? failed : unknown).push({ index: i, text: parts[i], error: String(r.reason?.message ?? r.reason), deliveryState });
+      }
     }
     // 部分成功也要让调用方知道：原先只在"全败"时抛错，部分成功会静默丢消息。
     // ★ 2026-10-18（#13）：全败改为同形状返回（failed 带每条 index/原因），不再 throw ——
@@ -532,7 +547,7 @@ export class SendQueue {
       const detail = failed.map((f) => `第${f.index + 1}条「${String(f.text).slice(0, 20)}」：${f.error}`).join('；');
       console.warn(`[sender] ${sent.length === 0 ? '全部' : '部分'}发送失败（${failed.length}/${parts.length}）：${detail}`);
     }
-    return { sent, failed, reply, blocked };
+    return { sent, failed, unknown, reply, blocked };
   }
 
   /**
