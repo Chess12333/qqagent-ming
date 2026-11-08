@@ -81,6 +81,48 @@ import {
 
 export { msgRef, normalizeRef };
 
+/**
+ * 兴趣唤醒的观察口（2026-11-08 加）
+ *
+ * 有什么问题它解决：外部的「关键词兴趣唤醒」要读「群里刚说了什么」，
+ * 但生产消息库是整份 JSON 重写（几十 MB），拿它当轮询源等于每次重读全表。
+ * 这里在收到群消息时顺手 append 一行到 `MING_QQ_INBOX` 指的 jsonl。
+ * 没设这个环境变量就什么都不做——公开包里不留私人路径。
+ * 写失败一律吞掉：这不是主链路，宁可少一条观察，也不能让收消息失败。
+ */
+const INBOX_PATH = String(process.env.MING_QQ_INBOX || '');
+// 只给「看一眼有没有新消息」用，不值得无限长：超过 8 MB 轮转成 .1。
+const INBOX_MAX_BYTES = 8 * 1024 * 1024;
+let inboxWrites = 0;
+function appendInbox(chatKey, entry) {
+  if (!INBOX_PATH) return;
+  const key = String(chatKey || '');
+  if (!key.startsWith('group:')) return;
+  try {
+    if ((inboxWrites++ % 500) === 0) {
+      try {
+        if (fs.statSync(INBOX_PATH).size > INBOX_MAX_BYTES) fs.renameSync(INBOX_PATH, INBOX_PATH + '.1');
+      } catch { /* 文件还不存在，或轮转失败：都不影响下面这一笔 */ }
+    }
+    const line = JSON.stringify({
+      ts: Number(entry.ts) || Date.now(),
+      kind: 'message',
+      decision: { ok: false, stage: 'inbound', reason: '兴趣观察：这条进了消息库，没有当作要回复的消息' },
+      frame: {
+        message_type: 'group',
+        group_id: key.slice(6),
+        user_id: String(entry.senderId ?? ''),
+        self_id: '',
+        sender: { card: String(entry.senderName ?? ''), nickname: String(entry.senderName ?? '') },
+        message: [{ type: 'text', data: { text: String(entry.text ?? '') } }],
+      },
+    });
+    fs.appendFileSync(INBOX_PATH, line + '\n');
+  } catch {
+    /* 观察记录，写不出来就算了 */
+  }
+}
+
 // ── 路径（**每次调用时**解析，绝不在模块加载时定值） ──────────────────────
 /** 热段目录：`<dataDir>/messages`。解析不出 dataDir 就抛错，不放行到默认目录（见 data-dir.js）。 */
 export function messagesDir(dataDir = null) {
@@ -1259,6 +1301,7 @@ export class ChatStore {
     }
     if (st._memberIndex) this.#indexMember(st._memberIndex, entry);
     this.#commitSourceRevision(st);
+    appendInbox(chatKey, entry);   // 兴趣唤醒的观察口；没配 MING_QQ_INBOX 就是空操作
     return entry;
   }
 

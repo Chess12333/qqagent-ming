@@ -63,6 +63,14 @@ npm start            # = electron refactor
   [**dsh-independent-input**](https://github.com/dongcaodeliyu/dsh-independent-input)（作者 **dongcaodeliyu**）：
   默认走 UIA / 窗口消息、不动主人真实光标，主人一碰键鼠就暂停。原仓照旧可用。
 
+## 版本
+
+当前 **1.0.0b-bugfix1**（2026-11-08）
+
+- `chat-store` 新增一个**可选**观察口：收到群消息时追加一行 jsonl 到 `MING_QQ_INBOX` 指的文件，
+  给外面的「关键词唤醒」当轮询源——不用去解析那份几十 MB 的消息库。不设这个环境变量就是空操作，
+  写失败也吞掉，不进主链路。超过 8 MB 自动轮转成 `.1`。
+
 ## 状态
 
 在一台机器上天天用，不是发布版。改动的理由、踩过的坑、哪条规矩是因为哪次事故加上的，都写在代码注释里——那些注释是这套东西最值钱的部分。
