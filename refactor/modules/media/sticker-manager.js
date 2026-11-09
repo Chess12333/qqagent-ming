@@ -643,7 +643,14 @@ export class StickerManager {
   async stickerPayload(sticker, { form = 'auto' } = {}) {
     const buffer = await this.resolveStickerBytes(sticker);
     const entry = sticker?.id ? this.entries.find((e) => e && e.id === sticker.id) || sticker : sticker;
-    if (form !== 'base64' && isLocalHostUrl(this.onebot?.httpUrl)) {
+    // 2026-11-09 23:5x：协议端在 docker 里，只通网络不通文件系统，落缓存给路径会被它 ENOENT。
+    // 判据跟 sender.js 的 isLocalOnebot 一致：默认不共享，config 里 snowluma.sharedFs=true 才算同机。
+    let sharedFs = false;
+    try {
+      sharedFs = String(process.env.QQAGENT_ONEBOT_SHARED_FS || '') === '1'
+        || getConfig()?.snowluma?.sharedFs === true;
+    } catch { sharedFs = false; }
+    if (form !== 'base64' && sharedFs && isLocalHostUrl(this.onebot?.httpUrl)) {
       const file = this.#cachePut(entry, buffer) || this.#cacheHit(entry)?.file;
       if (file) return file;
     }

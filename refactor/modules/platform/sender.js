@@ -30,8 +30,6 @@ const DEFAULT_MAX_PER_HOUR = DEFAULT_CONFIG.send.maxPerHour;
  * 留足余量又不至于把正常的网图都落盘。
  */
 const INLINE_BASE64_LIMIT = 2 * 1024 * 1024;
-/** 不落盘时能安全塞进请求体的上限（超过它 base64 会顶爆协议端，见下面 spillIfTooLarge 的实测）。 */
-const INLINE_BASE64_HARD_LIMIT = 8 * 1024 * 1024;
 
 /** 老树 send.splitLongAt：按中文句读符号做软拆分，最多保留 4 段。 */
 function splitLongMessages(messages, limit) {
@@ -63,22 +61,20 @@ function guessExt(buf) {
   return '.img';
 }
 
-/**
- * 协议端与我们**共用同一套文件系统**吗？
- *
- * 2026-11-09：原来用 isLocalHostUrl(onebotUrl) 推断「同机」，然后落盘传路径。
- * 但 OneBot 常常跑在容器里：URL 是 127.0.0.1，文件系统却是另一套——
- * 路径发过去对面读不到，用户看到的是「文件路径对不上」。
- * 所以改成显式开关，默认**不共享**（宁可内联 base64，也不发一个对面读不到的路径）。
- */
-function onebotSharesFs() {
-  const value = String(process.env.MING_ONEBOT_SHARED_FS || '').trim().toLowerCase();
-  return value === '1' || value === 'true' || value === 'yes';
-}
-
-/** 协议端是不是同机**且**共用文件系统（只有这时才敢传本地路径）。 */
+/** 协议端是不是同机（同机才敢传本地路径）。 */
 function isLocalOnebot(onebotUrl) {
-  return onebotSharesFs() && isLocalHostUrl(onebotUrl);
+  // 2026-11-09 23:5x：这台机器上的 OneBot（snowluma-ming）跑在 docker 容器里，只映射网络、
+  // 不映射文件系统——URL 是 127.0.0.1，但那是「容器的本机」，宿主路径交给它一律 ENOENT。
+  // 文件上传 20:13 / 23:50 各踩过一次（那两条走的是 send-file.mjs），这里是图片/表情的同一个坑：
+  // 大图会先落成 %TEMP% 下的宿主路径，再被容器拒掉。
+  // 判据换成「协议端和宿主共不共享文件系统」，默认不共享；真·同机部署在 config 里写
+  // snowluma.sharedFs = true 打开（或环境变量 QQAGENT_ONEBOT_SHARED_FS=1）。
+  let shared = false;
+  try {
+    shared = String(process.env.QQAGENT_ONEBOT_SHARED_FS || '') === '1'
+      || getConfig()?.snowluma?.sharedFs === true;
+  } catch { shared = false; }
+  return shared && isLocalHostUrl(onebotUrl);
 }
 
 /**
@@ -103,16 +99,7 @@ function spillIfTooLarge(payload, onebotUrl, { force = false } = {}) {
   if (!/^base64:\/\//i.test(text)) return text;
   const b64 = text.slice('base64://'.length);
   if (!force && b64.length <= INLINE_BASE64_LIMIT) return text;
-  // 不同机 / 不共享文件系统：只能内联；太大就明确报错，别让它撞成 ECONNRESET。
-  if (!isLocalOnebot(onebotUrl)) {
-    if (b64.length > INLINE_BASE64_HARD_LIMIT) {
-      throw new Error(
-        `文件太大（${(b64.length / 1024 / 1024).toFixed(1)}MB），而且协议端不共用文件系统：` +
-        '没法落盘传路径。要么把 MING_ONEBOT_SHARED_FS=1 且挂同一个目录，要么先压缩。'
-      );
-    }
-    return text;
-  }
+  if (!isLocalOnebot(onebotUrl)) return text;
   try {
     const buf = Buffer.from(b64, 'base64');
     const dir = path.join(os.tmpdir(), 'qq-agent-outgoing');
@@ -259,7 +246,64 @@ export async function shrinkStickerSource(src) {
   return raw;
 }
 
-export function prepareImagePayload(payload, onebotUrl, { force = false } = {}) {
+/** 内联 base64 的软上限：实测请求体 1.6MB 稳、3.17MB 被 RESET，所以压到这里为止。 */
+const FIT_TARGET_B64 = 1.5 * 1024 * 1024;
+
+/**
+ * 跨容器发图时把图片压到「base64 塞得进请求体」的大小。
+ *
+ * 为什么需要它（2026-11-09 23:5x）：协议端跑在 docker 里，只通网络不通文件系统，
+ * 宿主路径它读不到；所以没有「落盘给路径」这条退路。只剩内联 base64，
+ * 而请求体一大就被 RESET——表现是「图发不出去，还没有报错」。
+ * 这里按「长边递减 × 质量」逐档压，压到 1.5MB base64 以内就用压过的；
+ * 任何一步失败返回 null，调用方照旧用原图，绝不为优化把消息弄丢。
+ *
+ * @param {string} text  base64:// 载荷
+ * @returns {Promise<string|null>} 压好的 base64:// 载荷；压不动返回 null
+ */
+async function fitBase64Image(text) {
+  const b64 = String(text).slice('base64://'.length);
+  if (b64.length <= FIT_TARGET_B64) return text;
+  let buf;
+  try { buf = Buffer.from(b64, 'base64'); } catch { return null; }
+  if (!buf.length) return null;
+  const dims = stickerDims(buf);
+  if (!dims.fmt) return null;                       // 不是能解码的图，别硬压
+  const hash = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 16);
+  const dir = path.join(DATA_DIR, 'image-fit');
+  try { fs.mkdirSync(dir, { recursive: true }); } catch { return null; }
+  const src = path.join(dir, `${hash}-src.${dims.fmt === 'png' ? 'png' : dims.fmt === 'gif' ? 'gif' : 'jpg'}`);
+  try { if (!fs.existsSync(src)) fs.writeFileSync(src, buf); } catch { return null; }
+  // GIF 保动画（palettegen/paletteuse）；静态图先只缩尺寸，再顺带降质量
+  const steps = dims.fmt === 'gif'
+    ? [[800, 0], [480, 0], [320, 0]]
+    : [[2048, 4], [1600, 4], [1280, 4], [1280, 8], [960, 8], [720, 10]];
+  for (const [side, q] of steps) {
+    const ext = dims.fmt === 'gif' ? 'gif' : 'jpg';
+    const out = path.join(dir, `${hash}-${side}-q${q}.${ext}`);
+    try {
+      if (!fs.existsSync(out) || fs.statSync(out).size === 0) {
+        const vf = dims.fmt === 'gif'
+          ? `fps=12,scale='min(${side},iw)':-2:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=3`
+          : `scale='min(${side},iw)':-2:flags=lanczos`;
+        const args = dims.fmt === 'gif'
+          ? ['-y', '-i', src, '-vf', vf, '-loop', '0', out]
+          : ['-y', '-i', src, '-vf', vf, '-q:v', String(q), out];
+        await runFfmpeg(args);
+      }
+      const shrunk = fs.readFileSync(out);
+      if (!shrunk.length) continue;
+      const b = shrunk.toString('base64');
+      if (b.length <= FIT_TARGET_B64) {
+        console.log(`[sender] 图 ${(buf.length / 1048576).toFixed(1)}MB → 压到 ${(shrunk.length / 1048576).toFixed(2)}MB（长边 ${side}）`);
+        return `base64://${b}`;
+      }
+    } catch { /* 这一档不行就下一档 */ }
+  }
+  return null;
+}
+
+export async function prepareImagePayload(payload, onebotUrl, { force = false } = {}) {
   const text = String(payload || '').trim();
   if (!text) return text;
   const local = isLocalOnebot(onebotUrl);
@@ -270,12 +314,17 @@ export function prepareImagePayload(payload, onebotUrl, { force = false } = {}) 
       const p = fileUrlToPath(text);
       const stat = fs.statSync(p);
       if (stat.size > 32 * 1024 * 1024) return text;   // 太大就别读进内存了，如实报错给调用方
-      return `base64://${fs.readFileSync(p).toString('base64')}`;
+      const b64 = `base64://${fs.readFileSync(p).toString('base64')}`;
+      const fitted = await fitBase64Image(b64);
+      return fitted || b64;
     } catch {
       return text;
     }
   }
-  return spillIfTooLarge(text, onebotUrl, { force });
+  const spilled = spillIfTooLarge(text, onebotUrl, { force });
+  if (!spilled.toLowerCase().startsWith('base64://')) return spilled;   // 真·同机落盘了，用路径
+  const fitted = await fitBase64Image(spilled);
+  return fitted || spilled;
 }
 
 export class SendQueue {
@@ -617,7 +666,7 @@ export class SendQueue {
       // ★ 2026-10-26（她）：「发表情包记得缩小到 1/4，不然就是大图，看起来很难受的」。
       //   缩放在这里做（投递前、落盘前），返回的永远是本地路径或原样 src；缩不动就用原图，绝不因此不发。
       const shrunk = await shrinkStickerSource(rawSource);
-      const src = prepareImagePayload(shrunk, this.onebot?.httpUrl, { force: true });
+      const src = await prepareImagePayload(shrunk, this.onebot?.httpUrl, { force: true });
       await this.#checkRate(chatKey);
       await sleep(randInt(600, 1500)); // 发表情前真人式的短暂停顿
       const data = await this.onebot.sendSticker(kind, id, src, {
@@ -651,13 +700,14 @@ export class SendQueue {
    */
   sendImage(chatKey, { file = '', dataUrl = '', note = '' } = {}, options = {}) {
     const [kind, id] = String(chatKey).split(':');
-    const payload = prepareImagePayload(
-      String(file || '').trim() || String(dataUrl || '').trim(),
-      this.onebot?.httpUrl
-    );
     const chain = this.#chain(chatKey);
     const reply = this.#resolveReply(chatKey, options.replyToMessageId);
     return chain(async () => {
+      // 载荷在链里算：跨容器时会走 ffmpeg 压缩（异步），别挡在 sync 返回上
+      const payload = await prepareImagePayload(
+        String(file || '').trim() || String(dataUrl || '').trim(),
+        this.onebot?.httpUrl
+      );
       await this.#checkRate(chatKey);
       await sleep(randInt(400, 1200));
       const data = await this.onebot.sendImage(kind, id, payload, {

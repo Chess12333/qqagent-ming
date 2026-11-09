@@ -67,10 +67,6 @@ npm start            # = electron refactor
 
 在一台机器上天天用，不是发布版。改动的理由、踩过的坑、哪条规矩是因为哪次事故加上的，都写在代码注释里——那些注释是这套东西最值钱的部分。
 
-## 贡献者
-
-名单和「怎么把自己加进来」见 [CONTRIBUTORS.md](CONTRIBUTORS.md)。右侧那个 Contributors 栏是 GitHub 按提交作者自动算的，没有开关。
-
 ## 许可
 
 MIT。

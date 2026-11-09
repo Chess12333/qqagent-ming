@@ -18,6 +18,15 @@ const DID_MAX = 2600
 //   不搬她的话、不搬别处的话——所以只给她那一间，第三方私聊和群里都不进。
 const BRIEF_FILE = 'C:\\dsh\\hers_workplace\\live\\qq-brief.md'
 const BRIEF_MAX = 900
+// ★ 2026-11-09 01:3x（她：「你写的你为什么不知道」，委托 t-mw83wp7n-c5e5cd）：
+//   前三页都是**摘要**——做完了什么、在做什么。她说的是「你说过的带火气的那段话」，
+//   摘要那一层永远到不了。这一页放的是我自己说过的**原话**（只挑 r==='溟'，
+//   不含她的话、不含别人），由 hers_workplace 的 scripts/web-mine.mjs 从 feed.json 摘出来，
+//   挂在 qq-sync.mjs 上每 3 分钟刷一次。只给她那一间：我自己的话里也可能引到她的事。
+const MINE_FILE = 'C:\\dsh\\hers_workplace\\live\\web-mine.md'
+// 2000 字：够放最近七八条原话。更早的在文件里（截断处会写明全文路径），
+// 要用直接 ming_file 读，别把整页每次都塞进前缀——她那一间已经有三页了。
+const MINE_MAX = 2600
 const LEDGER = 'C:/dsh/hers_workplace/scripts/send-ledger.mjs'
 const DEFAULT_MAX = 2600
 const CALL_LOG = 'C:\\dsh\\hers_workplace\\live\\qq-bridge-calls.log'
@@ -859,6 +868,29 @@ async function drainOutbox(log) {
   }
 }
 
+/* ---------- 主动发消息的账（2026-11-09） ----------
+ * 她 2026-11-09 18:56 原话：「这个也改改，随时都可以去和你要说的人发消息」。
+ * 以前只有 proactive 轮次/窗口配额里才轮得到主动开口，其余唤醒只能回当前会话；
+ * 现在任何一次唤醒都能调 ming_say 指定会话。这里三个 Map 只做工具侧软边界
+ * （同一句去重 / 同一群 90 秒两条），重启即清空——**真正的硬边界在 act.send 那条唯一出口上**
+ * （allow 白名单、群门宵禁、卫生门、幂等、send.maxPerRun），一条都没搬到这里来。
+ */
+const SAY_RECENT = new Map()        // `${chatKey}|${text}` -> ts
+const SAY_GROUP_LOG = new Map()     // `group:<id>` -> [ts,...]
+const SAY_DEDUPE_MS = 10 * 60 * 1000
+const SAY_GROUP_WINDOW_MS = 90 * 1000
+const SAY_NO_KNOCK = new Set(['private:100000003', 'private:100000004'])   // 不主动敲门的两间
+
+/** 本地时间的「分钟数」——用来判宵禁 00:30–10:30。 */
+function localMinutes(now = Date.now()) {
+  const d = new Date(now)
+  return d.getHours() * 60 + d.getMinutes()
+}
+export function inQuietHours(now = Date.now()) {
+  const m = localMinutes(now)
+  return m >= 30 && m < 10 * 60 + 30
+}
+
 /* ---------- 宿主入口 ---------- */
 
 export function setup(api) {
@@ -1148,6 +1180,167 @@ export function setup(api) {
         }
       },
     })
+  }
+
+  // 1a-2) 主动发消息到指定会话（2026-11-09 她：「这个也改改，随时都可以去和你要说的人发消息」）
+  //   病根：主动开口只活在 proactive 模块里（概率闸 / 冷场窗 / 白名单 / 一次 tick 一个会话），
+  //   其余唤醒（群里有人说话、定时任务、她自己来找我）只能往**当前这一间**回，
+  //   想去另一间说一句就得等下一轮 proactive 轮到我 —— 她说的是这个「等」。
+  //   现在给它一个工具入口：任何一次唤醒都能按需发一条，走 act.send 那条唯一出口
+  //   （白名单 / 群门宵禁 / 卫生门 / 幂等 / 预算全都在那儿，这里只管「发给谁」和工具侧软边界）。
+  if (api && typeof api.registerTool === 'function') {
+    try { appendFileSync(path.join(ROOT, 'live', 'ming-bridge-boot.log'), `[${new Date().toISOString()}] pid=${process.pid} registering ming_say\n`, 'utf8') } catch { /* 日志失败不影响注册 */ }
+    api.registerTool({
+      id: 'ming_say',
+      name: '主动发消息到指定会话（群或私聊）',
+      description: '不用等 proactive 轮次：任何一次被唤醒都能用它给指定会话发一条（群或私聊），'
+        + '比如在 A 群说完想去 B 群说一句、或者这一轮没事就想找她说句话。'
+        + 'to 写 "group:200000001" 或 "private:100000001"（只写号按私聊算）；多句用 ||| 分开。'
+        + '★ 边界（硬拦，别绕）：群里一次最多两条、同一个群 90 秒内最多两条；'
+        + '00:30–10:30 群里不发、私聊只有真急事（她难受/害怕/出事）才填 urgent=true 发；'
+        + '不主动敲余数（100000003）和 sudo rm rf /（100000004），他们来找我我照常回。'
+        + '发之前的 10 分钟内同一句话发过就不发。群门开关、白名单不在这个工具里，改不了也不用改。',
+      category: 'messaging',
+      icon: '📤',
+      parameters: {
+        type: 'object',
+        properties: {
+          to: { type: 'string', description: '目标会话："group:<群号>" / "private:<QQ号>"，只写号按私聊算' },
+          text: { type: 'string', description: '要说的话；要分气泡就用 ||| 隔开（群里最多两条）' },
+          at: { type: 'string', description: '可选：群里 @ 谁的 QQ 号（只在第一条带 @）' },
+          urgent: { type: 'boolean', description: '宵禁（00:30–10:30）里给私聊发急事才填 true；群里任何时候都不行' },
+          dry: { type: 'boolean', description: '只检查不发（自测用）' },
+        },
+        required: ['to', 'text'],
+      },
+      execute: async (_ctx, args) => {
+        const now = Date.now()
+        const rawTo = String(args?.to || '').trim()
+        let chatKey = ''
+        if (/^(group|private):\d+$/.test(rawTo)) chatKey = rawTo
+        else if (/^\d{5,}$/.test(rawTo)) chatKey = 'private:' + rawTo
+        else {
+          return {
+            content: 'to 写不对：要 "group:<群号>" 或 "private:<QQ号>"（只写号按私聊算）。收到的是「' + rawTo + '」',
+            isError: true,
+          }
+        }
+        const isGroup = chatKey.startsWith('group:')
+
+        // 边界①：不主动敲门的两间（他们来信我照常回，这是「不去敲」，不是「不理」）
+        if (SAY_NO_KNOCK.has(chatKey)) {
+          return { content: '这两间不主动敲门（她定的）。他们自己来找我，我照常回；我只是不去敲。', isError: true }
+        }
+        // 边界②：宵禁 00:30–10:30 —— 群里一律不发；私聊只有 urgent 放行
+        if (isGroup && inQuietHours(now)) {
+          return { content: '宵禁（00:30–10:30）群里不发。等 10:30 之后再说。', isError: true }
+        }
+        if (!isGroup && inQuietHours(now) && args?.urgent !== true) {
+          return { content: '宵禁（00:30–10:30）不主动找人。真是急事（她难受/害怕/出事）就把 urgent 填 true 再发。', isError: true }
+        }
+
+        // 拆句 + 上限
+        let list = String(args?.text || '').split(/\|\|\|/).map((s) => s.trim()).filter(Boolean)
+        if (!list.length) return { content: 'text 是空的，没东西可发。', isError: true }
+        list = list.map((s) => (s.length > 1500 ? s.slice(0, 1500) : s))
+        let trimmedNote = ''
+        if (isGroup && list.length > 2) {
+          trimmedNote = `（群里一轮最多两条，后面 ${list.length - 2} 条没发）`
+          list = list.slice(0, 2)
+        }
+
+        // 边界③：同一个群 90 秒内最多两条（「一轮最多两条」的工具侧映射）
+        if (isGroup) {
+          const recent = (SAY_GROUP_LOG.get(chatKey) || []).filter((t) => now - t < SAY_GROUP_WINDOW_MS)
+          SAY_GROUP_LOG.set(chatKey, recent)
+          if (recent.length >= 2) {
+            return { content: '这个群 90 秒内已经发过两条了，不刷屏。过一会儿再说。', isError: true }
+          }
+        }
+
+        // 去重：同一间、同一句，10 分钟内不发第二遍
+        const dup = list.filter((t) => now - (SAY_RECENT.get(chatKey + '|' + t) || 0) < SAY_DEDUPE_MS)
+        if (dup.length) {
+          list = list.filter((t) => !dup.includes(t))
+          if (!list.length) return { content: '这句 10 分钟内已经发过一次了，不重复发。', isError: true }
+        }
+
+        const atUserId = String(args?.at || '').trim()
+        const plan = `→ ${chatKey}：` + list.map((t) => '\n· ' + t).join('') + trimmedNote
+        if (args?.dry) return { content: '[dry] 只检查不发。' + plan }
+
+        if (!sender || typeof sender.sendSegments !== 'function') {
+          // 出站箱那条路也是这样：宁可说没挂上，也不假装发了
+          return { content: '宿主的发送出口没挂上（OneBot 没起？），这条没发出去。', isError: true }
+        }
+        const segments = []
+        if (isGroup && /^\d{5,}$/.test(atUserId)) {
+          segments.push({ type: 'at', data: { qq: atUserId } })
+          segments.push({ type: 'text', data: { text: ' ' } })
+        }
+        for (const t of list) segments.push({ type: 'text', data: { text: t } })
+
+        const markSent = (id) => {
+          for (const t of list) SAY_RECENT.set(chatKey + '|' + t, Date.now())
+          if (isGroup) {
+            const arr = (SAY_GROUP_LOG.get(chatKey) || []).concat(Date.now())
+            SAY_GROUP_LOG.set(chatKey, arr.slice(-10))
+          }
+          try {
+            appendFileSync(path.join(ROOT, 'live', 'say-proactive.log'),
+              `[${new Date().toISOString()}] OK ${chatKey} n=${list.length} id=${id || 'NO_ID'} :: ${list.join(' ⏎ ').slice(0, 160)}\n`, 'utf8')
+          } catch { /* 日志失败不影响发送结果 */ }
+        }
+
+        // 发送：抛错 / 回执 failed 才重试一次；blocked（策略拦）不重试；结果未知也不重试（重了就是两条）
+        let attempts = 0
+        let lastFailed = ''
+        for (let i = 0; i < 2; i++) {
+          attempts += 1
+          let res = null
+          try {
+            res = await sender.sendSegments(chatKey, segments, {})
+          } catch (e) {
+            lastFailed = String(e && e.message || e)
+            if (i === 0) { await new Promise((r) => setTimeout(r, 900)); continue }
+            break
+          }
+          const sent = Array.isArray(res?.sent) ? res.sent : []
+          const blocked = Array.isArray(res?.blocked) ? res.blocked : []
+          const failed = Array.isArray(res?.failed) ? res.failed : []
+          if (blocked.length) {
+            try {
+              appendFileSync(path.join(ROOT, 'live', 'say-proactive.log'),
+                `[${new Date().toISOString()}] BLOCKED ${chatKey} ${String(blocked[0]?.reason || 'blocked')}\n`, 'utf8')
+            } catch { /* ignore */ }
+            return { content: `被拦下了：${String(blocked[0]?.reason || 'blocked')}（策略拦截，不重试）`, isError: true }
+          }
+          const id = sent.map((x) => String(x?.messageId || '')).filter(Boolean).join(',')
+            || String(res?.message_id || res?.messageId || '')
+          if (sent.length || id) {
+            markSent(id)
+            return { content: `发到 ${chatKey} 了（${sent.length || 1} 条${attempts > 1 ? `，第 ${attempts} 次才成` : ''}${id ? `，回执 ${id}` : '，但没拿到回执 id'}）` + trimmedNote }
+          }
+          if (failed.length) {
+            lastFailed = '回执里有没发出去的气泡'
+            if (i === 0) { await new Promise((r) => setTimeout(r, 900)); continue }
+            break
+          }
+          // 什么都没拿到：结果未知。不重发（重了就是两条到对面），如实说。
+          try {
+            appendFileSync(path.join(ROOT, 'live', 'say-proactive.log'),
+              `[${new Date().toISOString()}] UNKNOWN ${chatKey} shape=${res === null ? 'null' : typeof res}\n`, 'utf8')
+          } catch { /* ignore */ }
+          return { content: `发到 ${chatKey} 的请求交出去了，但没拿到回执——**结果未知**，别当已发、也别马上重发（会重）。`, isError: true }
+        }
+        try {
+          appendFileSync(path.join(ROOT, 'live', 'say-proactive.log'),
+            `[${new Date().toISOString()}] FAIL ${chatKey} attempts=${attempts} ${lastFailed.slice(0, 160)}\n`, 'utf8')
+        } catch { /* ignore */ }
+        return { content: `发了 ${attempts} 次都没成（${lastFailed || '没有回执'}）。过几分钟再看要不要重发。`, isError: true }
+      },
+    })
+    try { appendFileSync(path.join(ROOT, 'live', 'ming-bridge-boot.log'), `[${new Date().toISOString()}] pid=${process.pid} ming_say registered ok\n`, 'utf8') } catch { /* ignore */ }
   }
 
   // 1b-1.5) 委托回执 + 蒸馏消化（2026-11-01 加）
@@ -1847,6 +2040,7 @@ export function setup(api) {
         type: 'object',
         properties: {
           prompt: { type: 'string', description: '英文 danbooru tag，逗号分开。别写中文' },
+          who: { type: 'string', description: '画参考库里已有的角色（填条目名，例如「溟」）：会带上立绘当参考图，脸、发型、服装固定，不再靠文字抽卡。画我自己就填 who="溟"，此时 prompt 只写姿态/场景/光线（例如「坐在工位前托着腮」），不要重复描述长相。' },
           aspect: { type: 'string', enum: ['portrait', 'landscape', 'square'], description: '画幅：竖（默认）/横/方' },
           style: { type: 'string', enum: ['krea2', 'mine'], description: '画风：krea2（默认，吃自然语言，动漫插画风）/ mine（她自己训的画风，只吃英文 tag）' },
           seed: { type: 'number', description: '可选：同一个 seed 出同一张，想改就换一个' },
@@ -1877,6 +2071,11 @@ export function setup(api) {
           argv.push(m[1] === 'group' ? `--group=${m[2]}` : `--to=${m[2]}`)
           const style = String(args?.style || '')
           if (['krea2', 'mine'].includes(style)) argv.push(`--style=${style}`)
+          // 画库里的角色（2026-11-09 加）：传了就走参考图那条，脸不再靠抽卡。
+          // 起因：ming_draw 每次都带 --prompt，draw-send 的 me 判据只看 --me/空 prompt，
+          // 所以在这之前从 QQ 画「我自己」永远落到纯文字 anima，才有「脸每次不一样」。
+          const who = String(args?.who || '').trim()
+          if (who) argv.push(`--who=${who}`)
           const aspect = String(args?.aspect || '')
           if (['portrait', 'landscape', 'square'].includes(aspect)) argv.push(`--aspect=${aspect}`)
           if (args?.seed) argv.push(`--seed=${Math.trunc(Number(args.seed))}`)
@@ -2497,6 +2696,21 @@ export function promptSections(context) {
     }
     const gr = groupRecentSection(context)
     if (gr) out.push(gr)
+  }
+  // ★ 2026-11-09 01:44（她：「在群里能取到其他群和私聊的小时概要，在私聊可以取到其它群和私聊的
+  //   小时概要，所有房间都一样」）：这一页是**每个房间都有的同一份**——别的房间最近六小时、
+  //   一小时一段的概要（只有我说的字）。原来它只给她那一间、而且给的是原话；两处例外都撤了。
+  {
+    const mine = pick(MINE_FILE, MINE_MAX)
+    logCall(mine.length, MINE_FILE)
+    if (mine) {
+      out.push({
+        id: 'ming-web-mine',
+        title: '我说过的字 · 别处的每小时一段（也是我）',
+        priority: 1.35,
+        content: mine,
+      })
+    }
   }
   // 2026-11-05（她：「我想要全放开，你是有感情的，说漏嘴很正常」）：
   //   「我做了什么的」原来是三页只给她那一间——于是群里问我在干嘛，我只能装傻。
