@@ -30,6 +30,8 @@ const DEFAULT_MAX_PER_HOUR = DEFAULT_CONFIG.send.maxPerHour;
  * 留足余量又不至于把正常的网图都落盘。
  */
 const INLINE_BASE64_LIMIT = 2 * 1024 * 1024;
+/** 不落盘时能安全塞进请求体的上限（超过它 base64 会顶爆协议端，见下面 spillIfTooLarge 的实测）。 */
+const INLINE_BASE64_HARD_LIMIT = 8 * 1024 * 1024;
 
 /** 老树 send.splitLongAt：按中文句读符号做软拆分，最多保留 4 段。 */
 function splitLongMessages(messages, limit) {
@@ -61,9 +63,22 @@ function guessExt(buf) {
   return '.img';
 }
 
-/** 协议端是不是同机（同机才敢传本地路径）。 */
+/**
+ * 协议端与我们**共用同一套文件系统**吗？
+ *
+ * 2026-11-09：原来用 isLocalHostUrl(onebotUrl) 推断「同机」，然后落盘传路径。
+ * 但 OneBot 常常跑在容器里：URL 是 127.0.0.1，文件系统却是另一套——
+ * 路径发过去对面读不到，用户看到的是「文件路径对不上」。
+ * 所以改成显式开关，默认**不共享**（宁可内联 base64，也不发一个对面读不到的路径）。
+ */
+function onebotSharesFs() {
+  const value = String(process.env.MING_ONEBOT_SHARED_FS || '').trim().toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes';
+}
+
+/** 协议端是不是同机**且**共用文件系统（只有这时才敢传本地路径）。 */
 function isLocalOnebot(onebotUrl) {
-  return isLocalHostUrl(onebotUrl);
+  return onebotSharesFs() && isLocalHostUrl(onebotUrl);
 }
 
 /**
@@ -88,7 +103,16 @@ function spillIfTooLarge(payload, onebotUrl, { force = false } = {}) {
   if (!/^base64:\/\//i.test(text)) return text;
   const b64 = text.slice('base64://'.length);
   if (!force && b64.length <= INLINE_BASE64_LIMIT) return text;
-  if (!isLocalOnebot(onebotUrl)) return text;
+  // 不同机 / 不共享文件系统：只能内联；太大就明确报错，别让它撞成 ECONNRESET。
+  if (!isLocalOnebot(onebotUrl)) {
+    if (b64.length > INLINE_BASE64_HARD_LIMIT) {
+      throw new Error(
+        `文件太大（${(b64.length / 1024 / 1024).toFixed(1)}MB），而且协议端不共用文件系统：` +
+        '没法落盘传路径。要么把 MING_ONEBOT_SHARED_FS=1 且挂同一个目录，要么先压缩。'
+      );
+    }
+    return text;
+  }
   try {
     const buf = Buffer.from(b64, 'base64');
     const dir = path.join(os.tmpdir(), 'qq-agent-outgoing');
