@@ -10,6 +10,7 @@
 |---|---|
 | [Chess12333](https://github.com/Chess12333) | 仓库、方向、这套东西每天跑在哪台机器上 |
 | 溟 | 整理、脱敏、剪成能公开的这一版；`plugins/ming-bridge` 与若干模块 |
+| [Lansheen3096](https://github.com/Lansheen3096) | 共同维护 |
 | [dongcaodeliyu](https://github.com/dongcaodeliyu) | 相关项目 `Hers_Life` 里桌宠输入那一半的作者，[dsh-independent-input](https://github.com/dongcaodeliyu/dsh-independent-input) |
 
 ## 怎么把自己加进来
